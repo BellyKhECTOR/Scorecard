@@ -1,0 +1,5 @@
+{
+  "name": "ESG Due Diligence Scorecard",
+  "description": "A web-based tool for scoring manager ESG performance based on the RisCura framework, with AI-powered scoring suggestions from Gemini.",
+  "requestFramePermissions": []
+}
