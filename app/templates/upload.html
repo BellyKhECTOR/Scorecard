@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Upload &amp; Library — Mazi BD DDQ Knowledge Hub{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Upload Document</h2>
+    <p class="section-desc">Upload a DDQ or supporting document. The original file is stored permanently in S3.</p>
+
+    <form method="post" action="/upload" enctype="multipart/form-data" class="upload-form" id="upload-form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="client_name">Client Name <span class="required">*</span></label>
+                <input type="text" id="client_name" name="client_name" required placeholder="e.g. EPPF">
+            </div>
+            <div class="form-group">
+                <label for="document_type">Document Type <span class="required">*</span></label>
+                <select id="document_type" name="document_type" required>
+                    {% for dt in document_types %}
+                    <option value="{{ dt }}">{{ dt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="strategy">Strategy</label>
+                <input type="text" id="strategy" name="strategy" value="firmwide" placeholder="firmwide">
+            </div>
+            <div class="form-group">
+                <label for="document_date">Document Date <span class="required">*</span></label>
+                <input type="date" id="document_date" name="document_date" required>
+            </div>
+            <div class="form-group">
+                <label for="status">Status <span class="required">*</span></label>
+                <select id="status" name="status" required>
+                    {% for s in statuses %}
+                    <option value="{{ s }}">{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="file">File <span class="required">*</span></label>
+                <input type="file" id="file" name="file" required accept=".xlsx,.xls,.csv,.docx,.pdf,.txt,.html,.htm,.pptx,.eml,.png,.jpg,.jpeg,.gif,.tiff,.tif,.bmp,.zip">
+            </div>
+            <div class="form-group full-width">
+                <label for="notes">Notes (optional)</label>
+                <textarea id="notes" name="notes" rows="2" placeholder="Additional context about this document"></textarea>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="upload-btn">Upload Document</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Document Library</h2>
+    <p class="section-desc">Recently uploaded documents. Click a source link to view the original file.</p>
+
+    {% if documents %}
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Type</th>
+                    <th>Strategy</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Original File</th>
+                    <th>Stored File</th>
+                    <th>Ext</th>
+                    <th>Size</th>
+                    <th>Extraction</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in documents %}
+                {% set doc = row.doc %}
+                <tr>
+                    <td>{{ doc.client_name }}</td>
+                    <td><span class="badge">{{ doc.document_type }}</span></td>
+                    <td>{{ doc.strategy }}</td>
+                    <td>{{ doc.document_date }}</td>
+                    <td>{{ doc.status }}</td>
+                    <td class="truncate" title="{{ doc.original_filename }}">{{ doc.original_filename }}</td>
+                    <td class="truncate mono" title="{{ doc.stored_filename }}">{{ doc.stored_filename }}</td>
+                    <td>{{ doc.file_extension }}</td>
+                    <td>{{ (doc.size_bytes / 1024) | round(1) }} KB</td>
+                    <td>
+                        <span class="status-badge status-{{ doc.extraction_status }}">{{ doc.extraction_status }}</span>
+                        {% if doc.extraction_error %}
+                        <span class="error-hint" title="{{ doc.extraction_error }}">⚠</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="actions">
+                        {% if row.source_url %}
+                        <a href="{{ row.source_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary">Open Source</a>
+                        {% endif %}
+                        {% if doc.extraction_status in ('failed', 'partial', 'unsupported') %}
+                        <form method="post" action="/documents/{{ doc.id }}/reprocess" style="display:inline">
+                            <button type="submit" class="btn btn-sm btn-warning">Reprocess</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No documents uploaded yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

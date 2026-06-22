@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Search &amp; Draft — Mazi BD DDQ Knowledge Hub{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Search Knowledge Base</h2>
+    <p class="section-desc">Search approved and historical DDQ responses and supporting documents.</p>
+
+    <form method="get" action="/search" class="search-form">
+        <div class="search-bar">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search questions, answers, or document text..." class="search-input" autofocus>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+        <div class="filter-grid">
+            <div class="form-group">
+                <label for="client">Client</label>
+                <input type="text" id="client" name="client" value="{{ client }}" placeholder="client slug">
+            </div>
+            <div class="form-group">
+                <label for="document_type">Document Type</label>
+                <select id="document_type" name="document_type">
+                    <option value="">All types</option>
+                    {% for dt in document_types %}
+                    <option value="{{ dt }}" {% if document_type == dt %}selected{% endif %}>{{ dt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="topic">Topic</label>
+                <select id="topic" name="topic">
+                    <option value="">All topics</option>
+                    {% for t in topics %}
+                    <option value="{{ t.slug }}" {% if topic == t.slug %}selected{% endif %}>{{ t.display_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="year">Year</label>
+                <input type="number" id="year" name="year" value="{{ year }}" placeholder="e.g. 2025" min="2000" max="2100">
+            </div>
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All statuses</option>
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </form>
+</section>
+
+{% if draft %}
+<section class="card ai-panel">
+    <h2>AI-Assisted Draft Answer</h2>
+    {% if not ai_enabled %}
+    <div class="alert alert-warning">AI drafting is disabled. Showing best retrieved source material only.</div>
+    {% endif %}
+
+    <div class="draft-answer">
+        <div class="confidence-bar">
+            <span class="confidence-label confidence-{{ draft.confidence_label | lower | replace(' ', '-') }}">
+                Confidence: {{ draft.confidence_label }}
+                {% if draft.confidence_score %}({{ (draft.confidence_score * 100) | round }}%){% endif %}
+            </span>
+        </div>
+        <div class="draft-text">{{ draft.generated_answer }}</div>
+
+        {% if draft.warnings %}
+        <div class="warnings">
+            <h4>Warnings</h4>
+            <ul>
+                {% for w in draft.warnings %}
+                <li class="warning-item">{{ w }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if draft.sources %}
+        <div class="sources">
+            <h4>Supporting Sources</h4>
+            <ul>
+                {% for s in draft.sources %}
+                <li>{{ s.document_name }} — {{ s.client_name }}
+                    {% if s.sheet_name %} · Sheet: {{ s.sheet_name }}{% endif %}
+                    {% if s.row_number %} · Row: {{ s.row_number }}{% endif %}
+                    {% if s.page_number %} · Page: {{ s.page_number }}{% endif %}
+                    {% if s.source_url %}
+                    <a href="{{ s.source_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary">Open Source</a>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if draft.id and ai_enabled %}
+        <form method="post" action="/feedback/" class="feedback-form">
+            <input type="hidden" name="generated_answer_id" value="{{ draft.id }}">
+            <input type="hidden" name="return_query" value="{{ query }}">
+            <div class="form-group">
+                <label for="reviewer_name">Reviewer Name</label>
+                <input type="text" name="reviewer_name" id="reviewer_name" placeholder="Your name">
+            </div>
+            <div class="form-group">
+                <label for="edited_answer">Edited Answer (optional)</label>
+                <textarea name="edited_answer" id="edited_answer" rows="4">{{ draft.generated_answer }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="feedback_reason">Reason (optional)</label>
+                <input type="text" name="feedback_reason" id="feedback_reason">
+            </div>
+            <div class="feedback-actions">
+                <button type="submit" name="reviewer_action" value="accepted" class="btn btn-success">Accept</button>
+                <button type="submit" name="reviewer_action" value="edited" class="btn btn-primary">Edit &amp; Accept</button>
+                <button type="submit" name="reviewer_action" value="rejected" class="btn btn-secondary">Reject</button>
+                <button type="submit" name="reviewer_action" value="outdated" class="btn btn-warning">Mark Outdated</button>
+                <button type="submit" name="reviewer_action" value="escalated" class="btn btn-danger">Escalate to Compliance</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+{% if results %}
+<section class="card">
+    <h2>Exact Q&amp;A Matches <span class="count">({{ results.qa_matches | length }})</span></h2>
+    {% if results.qa_matches %}
+    <div class="results-list">
+        {% for qa in results.qa_matches %}
+        <article class="result-item">
+            <h3 class="result-question">{{ qa.question }}</h3>
+            <div class="result-answer">{% if qa.headline %}{{ qa.headline | safe }}{% else %}{{ qa.answer }}{% endif %}</div>
+            <div class="result-meta">
+                {% if qa.topic %}<span class="badge">{{ qa.topic }}</span>{% endif %}
+                <span>{{ qa.client_name }}</span>
+                <span>{{ qa.document_name }}</span>
+                {% if qa.source_sheet %}<span>Sheet: {{ qa.source_sheet }}</span>{% endif %}
+                {% if qa.source_row_number %}<span>Row: {{ qa.source_row_number }}</span>{% endif %}
+                {% if qa.section_heading %}<span>Section: {{ qa.section_heading }}</span>{% endif %}
+                <span class="badge badge-{{ qa.answer_status }}">{{ qa.answer_status }}</span>
+                {% if qa.source_url %}
+                <a href="{{ qa.source_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary">Open Source</a>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No Q&amp;A matches found.</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>Full Document Matches <span class="count">({{ results.document_matches | length }})</span></h2>
+    {% if results.document_matches %}
+    <div class="results-list">
+        {% for doc in results.document_matches %}
+        <article class="result-item">
+            <div class="result-excerpt">{% if doc.excerpt %}{{ doc.excerpt | safe }}{% else %}{{ doc.content[:300] }}...{% endif %}</div>
+            <div class="result-meta">
+                <span>{{ doc.client_name }}</span>
+                <span>{{ doc.document_name }}</span>
+                {% if doc.page_number %}<span>Page: {{ doc.page_number }}</span>{% endif %}
+                {% if doc.sheet_name %}<span>Sheet: {{ doc.sheet_name }}</span>{% endif %}
+                <span class="badge">{{ doc.file_extension }}</span>
+                {% if doc.source_url %}
+                <a href="{{ doc.source_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary">Open Source</a>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No document matches found.</p>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}
