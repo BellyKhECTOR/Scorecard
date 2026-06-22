@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -94,6 +94,14 @@ app.include_router(feedback.router)
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled error: %s", exc)
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {"detail": "An internal error occurred. Please contact support."},
+            status_code=500,
+        )
     return JSONResponse(
         status_code=500,
         content={"detail": "An internal error occurred. Please contact support."},

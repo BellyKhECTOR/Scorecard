@@ -140,6 +140,24 @@ def generate_presigned_url(
         raise S3UploadError(f"Failed to generate presigned URL: {exc}") from exc
 
 
+def download_object(
+    bucket: str,
+    key: str,
+    version_id: str | None = None,
+    settings: Settings | None = None,
+) -> bytes:
+    """Download document bytes from S3."""
+    client = get_s3_client(settings)
+    try:
+        kwargs: dict = {"Bucket": bucket, "Key": key}
+        if version_id:
+            kwargs["VersionId"] = version_id
+        response = client.get_object(**kwargs)
+        return response["Body"].read()
+    except ClientError as exc:
+        raise S3UploadError(f"S3 download failed for key '{key}': {exc}") from exc
+
+
 def check_s3_health(settings: Settings | None = None) -> bool:
     """Check S3 bucket accessibility."""
     settings = settings or get_settings()

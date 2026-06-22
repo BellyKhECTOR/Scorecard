@@ -88,6 +88,9 @@
                     {% if s.sheet_name %} · Sheet: {{ s.sheet_name }}{% endif %}
                     {% if s.row_number %} · Row: {{ s.row_number }}{% endif %}
                     {% if s.page_number %} · Page: {{ s.page_number }}{% endif %}
+                    {% if s.source_url %}
+                    <a href="{{ s.source_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary">Open Source</a>
+                    {% endif %}
                 </li>
                 {% endfor %}
             </ul>

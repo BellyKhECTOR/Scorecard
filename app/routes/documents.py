@@ -3,12 +3,13 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_session, get_settings_dep
 from src.config import Settings
+from src.exceptions import ExtractionError, S3UploadError
 from src.models import Document
 from src.services.upload_service import UploadService
 
@@ -39,15 +40,29 @@ async def reprocess_document(
     document = db.get(Document, document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found.")
-    if document.extraction_status not in ("failed", "partial", "unsupported"):
+
+    service = UploadService(db, settings)
+    try:
+        document = service.reprocess(document_id)
+        msg = (
+            f"Reprocessing complete: {document.original_filename} "
+            f"(status: {document.extraction_status})"
+        )
+        return RedirectResponse(url=f"/?message={msg}", status_code=303)
+    except S3UploadError as exc:
+        logger.exception("S3 download failed during reprocess")
         return RedirectResponse(
-            url=f"/?message=Document extraction status is {document.extraction_status}",
+            url=f"/?error=Could not download source from S3: {exc}",
             status_code=303,
         )
-    document.extraction_status = "pending"
-    document.extraction_error = "Reprocessing requested. Please re-upload the file."
-    db.commit()
-    return RedirectResponse(
-        url="/?message=Reprocessing flagged. Please re-upload the source file to reprocess.",
-        status_code=303,
-    )
+    except ExtractionError as exc:
+        return RedirectResponse(
+            url=f"/?error={exc}",
+            status_code=303,
+        )
+    except Exception as exc:
+        logger.exception("Reprocess failed")
+        return RedirectResponse(
+            url=f"/?error=Reprocessing failed: {exc}",
+            status_code=303,
+        )

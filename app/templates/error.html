@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Error — Mazi BD DDQ Knowledge Hub{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Something went wrong</h2>
+    <p class="section-desc">{{ detail or "An unexpected error occurred." }}</p>
+    <div class="form-actions">
+        <a href="/" class="btn btn-primary">Return to Upload &amp; Library</a>
+        <a href="/search" class="btn btn-secondary">Go to Search</a>
+    </div>
+</section>
+{% endblock %}

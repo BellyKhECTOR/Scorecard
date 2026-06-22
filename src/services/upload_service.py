@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.aws import (
     build_upload_metadata,
+    download_object,
     generate_presigned_url,
     upload_document,
     verify_object_exists,
@@ -73,7 +74,8 @@ class UploadService:
             .first()
         )
         if existing:
-            logger.info("Duplicate checksum found: %s", existing.id)
+            logger.info("Duplicate checksum — returning existing document %s", existing.id)
+            return existing
 
         metadata = build_upload_metadata(
             original_filename, sha256, client_slug, document_type, strategy, status
@@ -162,10 +164,26 @@ class UploadService:
         document = self.db.get(Document, document_id)
         if not document:
             raise DocumentValidationError("Document not found.")
+
         if file_data is None:
-            raise DocumentValidationError("File data required for reprocessing.")
+            file_data = download_object(
+                bucket=document.s3_bucket,
+                key=document.s3_key,
+                version_id=document.s3_version_id,
+                settings=self.settings,
+            )
+
         document.extraction_status = "processing"
         document.extraction_error = None
         self.db.commit()
-        self.extraction_service.extract_and_persist(document, file_data)
+
+        try:
+            self.extraction_service.extract_and_persist(document, file_data)
+        except Exception as exc:
+            logger.exception("Reprocess extraction failed for %s", document.id)
+            document.extraction_status = "failed"
+            document.extraction_error = str(exc)[:2000]
+            self.db.commit()
+            raise
+
         return document

@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
 """Reprocess failed document extractions."""
 
 import argparse
 import sys
 from pathlib import Path
+from uuid import UUID
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -11,45 +11,55 @@ from sqlalchemy import select
 
 from src.database import SessionLocal
 from src.models import Document
+from src.services.upload_service import UploadService
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="List and flag failed extractions for reprocessing")
+    parser = argparse.ArgumentParser(description="Reprocess failed document extractions from S3")
     parser.add_argument("--document-id", help="Specific document UUID to reprocess")
+    parser.add_argument("--all-failed", action="store_true", help="Reprocess all failed/partial docs")
     args = parser.parse_args()
 
     db = SessionLocal()
     try:
+        service = UploadService(db)
+
         if args.document_id:
-            doc = db.get(Document, args.document_id)
+            doc = db.get(Document, UUID(args.document_id))
             if not doc:
                 print(f"Document not found: {args.document_id}")
                 return 1
             docs = [doc]
-        else:
+        elif args.all_failed:
             docs = db.execute(
                 select(Document).where(
-                    Document.extraction_status.in_(["failed", "partial"])
+                    Document.extraction_status.in_(["failed", "partial", "unsupported"])
                 )
+            ).scalars().all()
+        else:
+            docs = db.execute(
+                select(Document).where(Document.extraction_status == "failed")
             ).scalars().all()
 
         if not docs:
-            print("No failed or partial extractions found.")
+            print("No documents to reprocess.")
             return 0
 
-        print(f"Found {len(docs)} document(s) for reprocessing:")
+        print(f"Reprocessing {len(docs)} document(s)...")
+        success = 0
+        failed = 0
         for doc in docs:
-            print(f"  {doc.id} | {doc.original_filename} | {doc.extraction_status}")
-            doc.extraction_status = "pending"
-            doc.extraction_error = "Queued for reprocessing"
+            try:
+                service.reprocess(doc.id)
+                db.refresh(doc)
+                print(f"  SUCCESS: {doc.original_filename} -> {doc.extraction_status}")
+                success += 1
+            except Exception as exc:
+                print(f"  FAILURE: {doc.original_filename} -> {exc}")
+                failed += 1
 
-        db.commit()
-        print("\nDocuments flagged for reprocessing. Re-upload source files to complete extraction.")
-        return 0
-    except Exception as exc:
-        db.rollback()
-        print(f"FAILURE: {exc}")
-        return 1
+        print(f"\nSummary: {success} succeeded, {failed} failed")
+        return 0 if failed == 0 else 1
     finally:
         db.close()
 

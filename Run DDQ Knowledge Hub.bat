@@ -82,6 +82,13 @@ if %ERRORLEVEL% neq 0 (
     echo WARNING: Topic initialisation failed. Continuing...
 )
 
+REM Generate sample documents if missing
+if not exist "sample_documents\ESG Questionnaire.xlsx" (
+    echo.
+    echo Generating sample documents...
+    uv run python scripts/generate_sample_documents.py
+)
+
 REM Start server — always localhost only
 echo.
 echo Starting Mazi BD DDQ Knowledge Hub (local only)...

@@ -87,7 +87,7 @@ uv run pytest tests/ -v
 
 ## Remaining Limitations
 
-- Sample corpus files must be placed in `sample_documents/` for full acceptance testing
 - Scanned PDF OCR requires optional `OCR_ENABLED=true` and provider configuration
 - Semantic search requires optional `pgvector` extension
 - ZIP files are stored but not auto-extracted in v1
+- Replace synthetic sample PDFs with real EPPF corpus files for final acceptance if available

@@ -50,9 +50,9 @@ async def search_page(
     topics = db.query(Topic).order_by(Topic.display_name).all()
 
     return templates.TemplateResponse(
+        request,
         "search.html",
         {
-            "request": request,
             "query": q,
             "client": client,
             "document_type": document_type,
@@ -65,6 +65,8 @@ async def search_page(
             "results": results,
             "draft": draft,
             "ai_enabled": settings.ai_available,
+            "message": request.query_params.get("message"),
+            "error": request.query_params.get("error"),
         },
     )
 

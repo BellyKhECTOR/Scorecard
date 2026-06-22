@@ -64,6 +64,7 @@ class OpenAIProvider:
         sources = [
             {
                 "document_name": s.document_name,
+                "document_id": s.document_id,
                 "client_name": s.client_name,
                 "sheet_name": s.sheet_name,
                 "row_number": s.row_number,

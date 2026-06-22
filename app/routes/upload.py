@@ -38,9 +38,9 @@ async def upload_page(request: Request, db: Session = Depends(get_session)):
         doc_rows.append({"doc": doc, "source_url": source_url})
 
     return templates.TemplateResponse(
+        request,
         "upload.html",
         {
-            "request": request,
             "document_types": sorted(DOCUMENT_TYPES),
             "statuses": sorted(DOCUMENT_STATUSES),
             "documents": doc_rows,
