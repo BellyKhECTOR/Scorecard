@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mazi BD DDQ Knowledge Hub{% endblock %}</title>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <div class="brand">
+                <span class="brand-mark">M</span>
+                <div>
+                    <h1 class="brand-title">Mazi BD DDQ Knowledge Hub</h1>
+                    <p class="brand-subtitle">Business Development · Compliance · Operations</p>
+                </div>
+            </div>
+            <nav class="main-nav">
+                <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Upload &amp; Library</a>
+                <a href="/search" class="nav-link {% if request.url.path.startswith('/search') %}active{% endif %}">Search &amp; Draft</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        {% if message %}
+        <div class="alert alert-success" role="alert">{{ message }}</div>
+        {% endif %}
+        {% if error %}
+        <div class="alert alert-error" role="alert">{{ error }}</div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>Mazi Asset Management · Internal Use Only</p>
+        </div>
+    </footer>
+    <script src="/static/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
