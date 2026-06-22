@@ -2,6 +2,26 @@
 
 Internal application for Mazi Asset Management Business Development, Compliance and Operations teams to store, search, retrieve and reuse information from completed due diligence questionnaires (DDQs) and supporting documents.
 
+## Project home (your PC)
+
+**All BD DDQ Universe data lives in this folder:**
+
+```text
+C:\Users\KhotsoMokoatle\OneDrive - Mazi\Desktop\Projects\Universe\BD - DDQ
+```
+
+This is the only project location. The application, scripts, working files, sample documents and backlog all live here on your local machine. See [`PROJECT_HOME.md`](PROJECT_HOME.md) for the full folder layout.
+
+| What | Where |
+|------|-------|
+| Application code | This folder (`app/`, `src/`, `scripts/`) |
+| Historical files to ingest | `data/backlog/` |
+| New files for review | `data/inbox/` |
+| Sample / test corpus | `sample_documents/` |
+| Ingestion reports | `data/reports/` |
+| Searchable knowledge | PostgreSQL on `localhost` |
+| Original documents (permanent) | S3 `khotso-bd-storage-basin` |
+
 ## What It Does
 
 - **Upload** original DDQ documents and supporting files to a secure S3 vault
@@ -10,109 +30,57 @@ Internal application for Mazi Asset Management Business Development, Compliance 
 - **Draft** evidence-backed answers using optional AI (disabled by default)
 - **Track** source lineage — every answer links back to its original document
 
+## Quick start (Windows)
+
+```powershell
+cd "C:\Users\KhotsoMokoatle\OneDrive - Mazi\Desktop\Projects\Universe\BD - DDQ"
+copy .env.example .env
+uv sync
+uv run alembic upgrade head
+uv run python scripts/initialise_topics.py
+```
+
+Then double-click **`Run DDQ Knowledge Hub.bat`**
+
+Full setup: [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md)
+
 ## Architecture
 
 ```
 Browser (Upload & Library | Search & Draft)
     ↓
-FastAPI + Jinja2 templates
+FastAPI + Jinja2 templates  (runs on your PC at 127.0.0.1)
     ↓
 Services (upload, extraction, search, retrieval, answer, feedback)
     ↓
-PostgreSQL (searchable knowledge) + S3 (permanent document vault)
+PostgreSQL (localhost) + S3 (khotso-bd-storage-basin via AWS CLI profile)
 ```
 
 ## Prerequisites
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) package manager
-- PostgreSQL 14+
-- AWS credentials with access to `khotso-bd-storage-basin` (eu-north-1)
-
-## PostgreSQL Setup
-
-Using Docker:
-
-```bash
-docker compose up -d postgres
-```
-
-Or install PostgreSQL locally and create a database:
-
-```sql
-CREATE DATABASE mazi_ddq;
-```
-
-## AWS Configuration
-
-Configure credentials using one of:
-
-- AWS CLI profile (set `AWS_PROFILE` in `.env`)
-- Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
-- IAM role (when deployed)
-
-Verify connectivity:
-
-```bash
-uv run python scripts/check_s3.py
-```
+- PostgreSQL 14+ (installed locally on your PC)
+- AWS CLI profile with access to `khotso-bd-storage-basin` (eu-north-1)
 
 ## Environment Setup
 
-```bash
-cp .env.example .env
+Copy `.env.example` to `.env` and set:
+
+```env
+PROJECT_ROOT=C:\Users\KhotsoMokoatle\OneDrive - Mazi\Desktop\Projects\Universe\BD - DDQ
+LOCAL_ONLY=true
+DATABASE_URL=postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:5432/mazi_ddq
+AWS_PROFILE=your-profile-name
 ```
-
-Edit `.env` with your database URL and AWS settings. Never commit `.env` to source control.
-
-## Installation
-
-```bash
-uv sync
-```
-
-## Database Migration
-
-```bash
-uv run alembic upgrade head
-uv run python scripts/initialise_topics.py
-```
-
-## Application Launch
-
-### Windows (one-click)
-
-Double-click `Run DDQ Knowledge Hub.bat`
-
-### Manual
-
-```bash
-uv run uvicorn app.main:app --reload
-```
-
-Open http://127.0.0.1:8000
 
 ## Backlog Ingestion
 
-Scan and upload a directory of historical documents:
+Place historical DDQ files in `data/backlog/`, then:
 
-```bash
-# Preview without uploading
-uv run python scripts/ingest_backlog.py /path/to/documents --dry-run
-
-# Upload with confirmation
-uv run python scripts/ingest_backlog.py /path/to/documents
-
-# Automated (no prompt)
-uv run python scripts/ingest_backlog.py /path/to/documents --yes --client EPPF --document-type ddq
-```
-
-## Sample Documents
-
-Place acceptance corpus files in `sample_documents/` and run:
-
-```bash
-uv run python scripts/ingest_samples.py
+```powershell
+uv run python scripts/ingest_backlog.py --recursive --dry-run
+uv run python scripts/ingest_backlog.py --recursive
 ```
 
 ## Testing
@@ -121,46 +89,12 @@ uv run python scripts/ingest_samples.py
 uv run pytest tests/ -v
 ```
 
-## Troubleshooting
+## Documentation
 
-| Issue | Solution |
-|-------|----------|
-| Database connection failed | Check `DATABASE_URL` in `.env`; ensure PostgreSQL is running |
-| S3 upload failed | Run `scripts/check_s3.py`; verify AWS credentials and bucket access |
-| Extraction failed | Source file is still in S3; click Reprocess or re-upload |
-| AI drafting disabled | Set `AI_ENABLED=true` and configure `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL` |
-
-## AI Enablement
-
-```env
-AI_ENABLED=true
-LLM_PROVIDER=openai
-LLM_API_KEY=your-key-here
-LLM_MODEL=gpt-4o-mini
-```
-
-The application works fully without AI. Search and storage are unaffected.
-
-## Security Notes
-
-- S3 bucket is never public; downloads use presigned URLs
-- No credentials in source control or logs
-- Uploaded documents are treated as untrusted data
-- AI layer is protected against prompt injection from document content
-
-## Recovery Steps
-
-```bash
-# Check S3 ↔ database consistency
-uv run python scripts/reconcile_storage.py
-
-# Flag failed extractions for reprocessing
-uv run python scripts/reprocess_failed.py
-```
-
-## Project Structure
-
-See `BUILD_PLAN.md` for implementation details and `docs/` for architecture, operations, security and AI governance documentation.
+- [`PROJECT_HOME.md`](PROJECT_HOME.md) — folder layout and data locations
+- [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md) — Windows setup guide
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — day-to-day use for staff
+- [`BUILD_PLAN.md`](BUILD_PLAN.md) — implementation milestones
 
 ## Legacy Scorecard
 

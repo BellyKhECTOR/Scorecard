@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select
 
+from src.config import get_settings
 from src.database import SessionLocal
 from src.models import Document
 from src.naming import build_canonical_filename, build_s3_key, slugify
@@ -40,8 +41,15 @@ def infer_client(filepath: Path) -> str:
 
 
 def main() -> int:
+    settings = get_settings()
     parser = argparse.ArgumentParser(description="Batch ingest DDQ documents")
-    parser.add_argument("directory", type=Path, help="Directory to scan")
+    parser.add_argument(
+        "directory",
+        type=Path,
+        nargs="?",
+        default=settings.backlog_dir,
+        help=f"Directory to scan (default: {settings.backlog_dir})",
+    )
     parser.add_argument("--recursive", "-r", action="store_true", help="Scan recursively")
     parser.add_argument("--dry-run", action="store_true", help="Preview without uploading")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -50,8 +58,15 @@ def main() -> int:
     parser.add_argument("--strategy", default="firmwide", help="Default strategy")
     parser.add_argument("--status", default="supporting", help="Default status")
     parser.add_argument("--document-date", default=None, help="Default date YYYY-MM-DD")
-    parser.add_argument("--report", default="ingest_failures.json", help="Failure report path")
+    parser.add_argument(
+        "--report",
+        default=str(settings.reports_dir / "ingest_failures.json"),
+        help="Failure report path",
+    )
     args = parser.parse_args()
+
+    print(f"Project root: {settings.root}")
+    print(f"Scanning:     {args.directory}")
 
     if not args.directory.exists():
         print(f"FAILURE: Directory not found: {args.directory}")

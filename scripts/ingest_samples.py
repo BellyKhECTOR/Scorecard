@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.config import get_settings
 from src.database import SessionLocal
 from src.services.upload_service import UploadService
 
@@ -39,7 +40,10 @@ SAMPLE_METADATA = {
 
 
 def main() -> int:
-    sample_dir = Path(__file__).resolve().parent.parent / "sample_documents"
+    settings = get_settings()
+    sample_dir = settings.sample_documents_dir
+    print(f"Project root: {settings.root}")
+    print(f"Sample documents: {sample_dir}")
     if not sample_dir.exists():
         print(f"Sample directory not found: {sample_dir}")
         return 1
